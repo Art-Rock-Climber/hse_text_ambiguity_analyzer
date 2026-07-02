@@ -1,0 +1,53 @@
+You are an expert in Russian syntax.
+
+You receive:
+1. The original sentence:
+"{sentence_text}"
+
+2. Token list, morphological tags, and dependency tree structure:
+{sentence_structure_text}
+
+Your task is NOT to verify whether the parse is correct.
+Instead, determine whether another dependency structure could be equally plausible for a human reader (focusing strictly on syntax).
+
+CRITICAL RULE - STRICT CATEGORY SCOPE:
+- ONLY detect syntactic attachment ambiguities (e.g., prepositional attachment, adverbial attachment, or participial phrase attachment where a modifier can attach to multiple different nouns or verbs in the sentence).
+- Example of syntax ambiguity: "Я видел человека с биноклем" (does "с биноклем" modify "человека" or "видел"?).
+- DO NOT detect referential/pronoun ambiguity (e.g. "Мария сказала Анне, что она опоздает").
+- DO NOT detect coordinational grouping ambiguity (e.g. "Студенты и преподаватели и родители...").
+- DO NOT detect lexical ambiguity or word polysemy.
+- If you find any ambiguity of a category OTHER than syntactic attachment, return "is_ambiguous": false.
+
+If yes, identify the ambiguity:
+- Alternative attachment: describe which token attaches differently and why.
+- Plausibility explanation: why both parses are syntactically plausible.
+- Ambiguous fragment: identify the exact text fragment.
+- Suggested revision: how to rewrite it to remove the ambiguity.
+- Confidence: estimated confidence (float between 0.0 and 1.0).
+- Programmatic override (CRITICAL):
+  - ambiguous_token_idx: the 1-based index of the ambiguous token in the token list.
+  - alternative_parent_idx: the 1-based index of its alternative parent token (or 0 if it becomes the ROOT of the sentence).
+  - alternative_relation: the new dependency relation string (e.g. "obl", "nmod").
+
+Return your response strictly as a JSON object matching this schema:
+{{
+  "is_ambiguous": true/false,
+  "findings": [
+    {{
+      "title": "Short title of the syntax ambiguity",
+      "description": "User-friendly description explaining the ambiguity",
+      "ambiguous_fragment": "exact text snippet causing the ambiguity",
+      "alternative_attachment": "description of alternative attachment",
+      "explanation": "syntactic explanation of both attachments",
+      "confidence": 0.85,
+      "suggested_revision": "rewritten sentence to clear the ambiguity",
+      "ambiguous_token_idx": 4,
+      "alternative_parent_idx": 2,
+      "alternative_relation": "obl"
+    }}
+  ]
+}}
+
+Format requirements:
+- Return ONLY the raw JSON object. Do not wrap it in markdown code blocks like ```json ... ```. Do not add conversational text.
+- Ensure all token indices are correct 1-based indices from the token list.

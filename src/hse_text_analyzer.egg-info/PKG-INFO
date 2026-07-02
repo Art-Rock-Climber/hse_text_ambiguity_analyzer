@@ -1,0 +1,47 @@
+Metadata-Version: 2.4
+Name: hse-text-analyzer
+Version: 0.1.0
+Summary: Local Streamlit application for ambiguity analysis of Russian academic texts.
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: langgraph>=0.2.60
+Requires-Dist: pydantic>=2.8
+Requires-Dist: streamlit>=1.37
+Requires-Dist: python-docx>=1.1
+Requires-Dist: pymupdf>=1.24
+Provides-Extra: dev
+Requires-Dist: pytest>=8.2; extra == "dev"
+Requires-Dist: ruff>=0.6; extra == "dev"
+
+# HSE Text Analyzer
+
+Local Streamlit application for detecting ambiguity in Russian academic texts.
+
+Stage 1 provides the foundation:
+
+- Clean Architecture package structure.
+- Configuration and logging.
+- Common domain models.
+- Application ports and services.
+- Parser registry and document loading pipeline.
+- Plugin registration mechanism for future detectors.
+- LangGraph workflow skeleton.
+- Streamlit navigation and document upload UI.
+
+Ambiguity detection and NLP analysis are intentionally not implemented in Stage 1.
+
+## Run Locally
+
+```bash
+pip install -e ".[dev]"
+streamlit run app/streamlit_app.py
+```
+
+## Supported Uploads in Stage 1
+
+- `.txt`
+- `.md`
+- `.docx`
+- `.pdf`
+
+PDF and DOCX parsing depend on `pymupdf` and `python-docx`.

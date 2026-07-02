@@ -1,0 +1,70 @@
+@startuml Sequence_Ambiguity_Detection
+skinparam maxMessageSize 250
+autonumber
+
+actor "User" as User
+participant "Streamlit UI" as UI
+participant "LangGraph\nWorkflow" as Workflow
+participant "Document\nParser" as Parser
+participant "NLP\nPipeline" as NLP
+participant "Prefiltering\nEngine" as Prefilter
+participant "AI Detectors\n(Registry)" as Detectors
+participant "OpenRouter\nClient" as AIClient
+participant "OpenRouter\nAPI" as OpenRouter
+
+User -> UI : Загружает документ\n и начинает анализ
+activate UI
+
+UI -> Workflow : Начать анализ
+activate Workflow
+
+Workflow -> Parser : 1. Load & Parse Text
+activate Parser
+Parser --> Workflow : Raw Text Content
+deactivate Parser
+
+Workflow -> NLP : 2. Text Preprocessing
+activate NLP
+NLP -> NLP : Sentence Segmentation\n& Tokenization
+NLP -> NLP : 3. Lexical & Syntax\nFeatures Analysis (AST)
+NLP --> Workflow : LinguisticAnalysis\n(Sentences, Tokens, Morph)
+deactivate NLP
+
+Workflow -> Detectors : Поиск неоднозначностей
+activate Detectors
+
+loop For each detector & sentence
+    Detectors -> Prefilter : 4. Prefiltering
+    activate Prefilter
+    note right
+      например, проверить число "и/или"
+    end note
+    Prefilter --> Detectors : Нужен LLM?
+    deactivate Prefilter
+    
+    alt Should Call == True
+        Detectors -> AIClient : Анализ
+        activate AIClient
+        
+        AIClient -> AIClient : 5. OpenRouter Guardrails\n(Обход правил и перс. данные)
+        AIClient -> OpenRouter : 6. Agents detecting ambiguities
+        activate OpenRouter
+        OpenRouter --> AIClient : AI Response (JSON)
+        deactivate OpenRouter
+        
+        AIClient --> Detectors : Структурированный ответ
+        deactivate AIClient
+    end
+end
+
+Detectors --> Workflow : Список неоднозначностей
+deactivate Detectors
+
+Workflow --> UI : Итоговый отчёт
+deactivate Workflow
+
+UI -> UI : 7. Рендер AST диаграм, таблиц
+UI --> User : Показывает результат
+deactivate UI
+
+@enduml

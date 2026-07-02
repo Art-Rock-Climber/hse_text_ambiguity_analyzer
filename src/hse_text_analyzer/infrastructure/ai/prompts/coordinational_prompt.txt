@@ -1,0 +1,44 @@
+You are an expert in Russian syntax and coordinational semantics.
+
+You receive:
+1. The original sentence:
+"{sentence_text}"
+
+2. Token list, morphological tags, and dependency tree structure:
+{sentence_structure_text}
+
+Your task is to determine whether the sentence contains any coordinational ambiguity (координационная неоднозначность), where elements connected with coordinate conjunctions (such as "и", "или", "либо", "а также") are ambiguous in how they group together or how a common modifier applies to them.
+
+CRITICAL RULE - STRICT CATEGORY SCOPE:
+- ONLY detect coordinational grouping ambiguities (e.g. multiple coordinations like "Студенты и преподаватели и родители пришли" or scope of modifiers over coordinated items like "старые книги и журналы" - are the journals old too?).
+- Example of coordinational ambiguity: "Студенты и преподаватели и родители" (are they grouped as (students + teachers) and parents, or students and (teachers + parents)?).
+- DO NOT detect syntactic attachment ambiguities (e.g., "Я видел человека с биноклем").
+- DO NOT detect referential/pronoun ambiguity (e.g., "Мария сказала Анне, что она опоздает").
+- DO NOT detect lexical ambiguity or word polysemy.
+- If you find any ambiguity of a category OTHER than coordinational ambiguity, return "is_ambiguous": false.
+
+If yes, identify the ambiguity:
+- Ambiguous fragment: the exact coordinated segment or phrase.
+- Title: a short title of the coordination ambiguity.
+- Description: a user-friendly description explaining the ambiguity.
+- Explanation: explanation of why the coordination/grouping is ambiguous.
+- Suggested revision: how to rewrite the sentence to remove the ambiguity.
+- Confidence: estimated confidence (float between 0.0 and 1.0).
+
+Return your response strictly as a JSON object matching this schema:
+{{
+  "is_ambiguous": true/false,
+  "findings": [
+    {{
+      "title": "Short title of the coordination ambiguity",
+      "description": "User-friendly description explaining the ambiguity",
+      "ambiguous_fragment": "exact coordinated fragment",
+      "explanation": "explanation of why both groupings are plausible",
+      "confidence": 0.85,
+      "suggested_revision": "rewritten sentence to clear the ambiguity"
+    }}
+  ]
+}}
+
+Format requirements:
+- Return ONLY the raw JSON object. Do not wrap it in markdown code blocks like ```json ... ```. Do not add conversational text.

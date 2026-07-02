@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hse-text-analyzer"
+version = "0.1.0"
+description = "Local Streamlit application for ambiguity analysis of Russian academic texts."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "langgraph>=0.2.60",
+    "pydantic>=2.8",
+    "streamlit>=1.37",
+    "python-docx>=1.1",
+    "pymupdf>=1.24",
+    "pymorphy3>=2.0.6",
+    "pymorphy3-dicts-ru>=2.4",
+    "natasha>=1.6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2",
+    "ruff>=0.6",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

@@ -1,0 +1,33 @@
+@startuml C4_Architecture
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+left to right direction
+title C2 диаграмма - HSE Text Analyzer
+
+Person(user, "User", "Учитель/студент,\nпишущий\nакадемечиский текст")
+System_Ext(openrouter, "OpenRouter\nAPI", "LLM провайдер\nагентов")
+
+System_Boundary(system, "HSE Text Analyzer") {
+    Container(frontend, "Streamlit Web App", "Python, Streamlit", "Загрузка документов, показ отчётов")
+    
+    Container_Boundary(backend, "Backend System") {
+        Component(parser, "Document Parsers", "TextParser", "Загружкает и парсит TXT, MD, DOCX, PDF")
+        Component(nlp, "NLP Pipeline", "Natasha", "Text segmentation, tokenization, morphology, syntax AST")
+        Component(workflow, "LangGraph\nWorkflow", "StateGraph", "Оркестрирует")
+        
+        Component(registry, "Detectors Registry", "Plugin System", "Управляет\nвстроенными детекторами")
+        Component(ai_client, "OpenRouter\nClient", "HTTPX", "Управляет\nAPI запросами")
+    }
+}
+
+Rel(user, frontend, "Uploads text,\nviews results", "HTTPS")
+Rel(frontend, workflow, "Triggers\nanalysis", "Function Call")
+
+Rel(workflow, parser, "Extracts text")
+Rel(workflow, nlp, "Extracts linguistic features")
+Rel(workflow, registry, "Invokes enabled detectors")
+
+Rel(registry, ai_client, "Sends prefiltered sentences")
+Rel(ai_client, openrouter, "Analyzes ambiguities", "REST/JSON")
+
+@enduml

@@ -1,0 +1,44 @@
+You are an expert in Russian semantics and discourse analysis.
+
+You receive:
+1. The original sentence:
+"{sentence_text}"
+
+2. Token list, morphological tags, and dependency tree structure:
+{sentence_structure_text}
+
+Your task is to determine whether the sentence contains any referential or pronoun ambiguity (неявная ссылка / референциальная неоднозначность), where a pronoun (e.g., "она", "его", "который", "этот") or index pointer can plausibly refer to multiple antecedent nouns in the context.
+
+CRITICAL RULE - STRICT CATEGORY SCOPE:
+- ONLY detect referential or pronoun ambiguity (неявная ссылка / референциальная неоднозначность), where a pronoun (e.g., "она", "его", "который", "этот") or index pointer can plausibly refer to multiple antecedent nouns in the context.
+- Example of referential ambiguity: "Мария сказала Анне, что она опоздает" (who is "она"? Maria or Anna?).
+- DO NOT detect syntactic attachment ambiguities (e.g., "Я видел человека с биноклем").
+- DO NOT detect coordinational grouping ambiguities (e.g., grouping of items linked with "и/или" like "Студенты и преподаватели и родители").
+- DO NOT detect lexical ambiguity or word polysemy.
+- If you find any ambiguity of a category OTHER than referential/pronoun ambiguity, return "is_ambiguous": false.
+
+If yes, identify the ambiguity:
+- Ambiguous fragment: the exact pronoun or reference word/phrase.
+- Possible referents: the list of nouns it could refer to.
+- Explanation: why both referents are plausible.
+- Suggested revision: how to rewrite the sentence to resolve the ambiguity.
+- Confidence: estimated confidence (float between 0.0 and 1.0).
+
+Return your response strictly as a JSON object matching this schema:
+{{
+  "is_ambiguous": true/false,
+  "findings": [
+    {{
+      "title": "Short title of the referential ambiguity",
+      "description": "User-friendly description explaining the ambiguity",
+      "ambiguous_fragment": "exact pronoun or reference word/phrase",
+      "possible_referents": ["referent A", "referent B"],
+      "explanation": "syntactic/discourse explanation of why both referents are plausible",
+      "confidence": 0.85,
+      "suggested_revision": "rewritten sentence to clear the ambiguity"
+    }}
+  ]
+}}
+
+Format requirements:
+- Return ONLY the raw JSON object. Do not wrap it in markdown code blocks like ```json ... ```. Do not add conversational text.
