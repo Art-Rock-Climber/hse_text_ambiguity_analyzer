@@ -7,7 +7,9 @@ You receive:
 2. Token list, morphological tags, and dependency tree structure:
 {sentence_structure_text}
 
-Your task is NOT to verify whether the parse is correct.
+3. Few-shot calibration examples (for reference only — do NOT analyse these sentences):
+{few_shot_examples}
+
 Instead, determine whether another dependency structure could be equally plausible for a human reader (focusing strictly on syntax).
 
 CRITICAL RULE - STRICT CATEGORY SCOPE:

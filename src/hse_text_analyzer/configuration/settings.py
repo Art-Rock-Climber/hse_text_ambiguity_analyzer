@@ -45,8 +45,8 @@ def load_openrouter_secrets() -> tuple[str | None, str, str | None]:
 
 def load_groq_secrets() -> tuple[str | None, str]:
     key = _get_secret("GROQ_API_KEY")
-    model = _get_secret("GROQ_MODEL", "openai/gpt-oss-120b")
-    return key, model or "openai/gpt-oss-120b"
+    model = _get_secret("GROQ_MODEL", "openai/gpt-oss-20b")
+    return key, model or "openai/gpt-oss-20b"
 
 
 class AppSettings(BaseModel):

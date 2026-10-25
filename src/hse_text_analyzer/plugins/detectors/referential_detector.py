@@ -6,6 +6,7 @@ from hse_text_analyzer.domain.models.ambiguity import AmbiguityFinding, TextSpan
 from hse_text_analyzer.domain.models.document import Document
 from hse_text_analyzer.infrastructure.ai.factory import get_ai_client
 from hse_text_analyzer.infrastructure.ai.schemas import AIReferentialResponse, AIReferentialFinding
+from hse_text_analyzer.infrastructure.rag.example_bank import ExampleBank
 from hse_text_analyzer.plugins.detectors.detector_utils import (
     MAX_SENTENCES_PER_DOC,
     MAX_TOKENS_PER_SENTENCE,
@@ -34,6 +35,7 @@ class ReferentialAmbiguityDetector(AmbiguityDetector):
 
     def __init__(self) -> None:
         self._client = get_ai_client()
+        self._example_bank = ExampleBank()
 
     def detect(self, document: Document) -> list[AmbiguityFinding]:
         """
@@ -97,7 +99,22 @@ class ReferentialAmbiguityDetector(AmbiguityDetector):
                 continue
 
             structure_text = format_sentence_structure(sentence)
-            response = self._client.analyze_sentence_reference(sentence.text, structure_text)
+
+            # Memory: retrieve cross-sentence entity context from agent memory
+            cross_sentence_ctx = ""
+            if document.agent_memory:
+                cross_sentence_ctx = document.agent_memory.get_context_before_sentence(sent_idx)
+
+            # RAG: retrieve similar calibration examples
+            examples = self._example_bank.retrieve(sentence.text, "referential_ambiguity")
+            few_shot_str = self._example_bank.format_for_prompt(examples)
+
+            response = self._client.analyze_sentence_reference(
+                sentence.text,
+                structure_text,
+                few_shot_examples=few_shot_str,
+                cross_sentence_context=cross_sentence_ctx,
+            )
 
             if response.error_message:
                 warning_msg = f"[{self.metadata.name}] {response.error_message}"

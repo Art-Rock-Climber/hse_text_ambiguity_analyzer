@@ -7,7 +7,15 @@ You receive:
 2. Token list, morphological tags, and dependency tree structure:
 {sentence_structure_text}
 
+3. Cross-sentence entity context from agent memory (entities introduced in PREVIOUS sentences of this document):
+{cross_sentence_context}
+
+4. Few-shot calibration examples (for reference only — do NOT analyse these sentences):
+{few_shot_examples}
+
 Your task is to determine whether the sentence contains any referential or pronoun ambiguity (неявная ссылка / референциальная неоднозначность), where a pronoun (e.g., "она", "его", "который", "этот") or index pointer can plausibly refer to multiple antecedent nouns in the context.
+
+IMPORTANT: Use the cross-sentence entity context (item 3) to reason about pronouns that may refer to entities introduced in earlier sentences, not just the current one.
 
 CRITICAL RULE - STRICT CATEGORY SCOPE:
 - ONLY detect referential or pronoun ambiguity (неявная ссылка / референциальная неоднозначность), where a pronoun (e.g., "она", "его", "который", "этот") or index pointer can plausibly refer to multiple antecedent nouns in the context.
@@ -19,7 +27,7 @@ CRITICAL RULE - STRICT CATEGORY SCOPE:
 
 If yes, identify the ambiguity:
 - Ambiguous fragment: the exact pronoun or reference word/phrase.
-- Possible referents: the list of nouns it could refer to.
+- Possible referents: the list of nouns it could refer to (include entities from previous sentences if relevant).
 - Explanation: why both referents are plausible.
 - Suggested revision: how to rewrite the sentence to resolve the ambiguity.
 - Confidence: estimated confidence (float between 0.0 and 1.0).

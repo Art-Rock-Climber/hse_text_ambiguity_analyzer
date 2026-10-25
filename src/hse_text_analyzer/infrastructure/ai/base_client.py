@@ -43,7 +43,12 @@ class BaseAIClient(abc.ABC):
     def _provider_name(self) -> str:
         pass
 
-    def analyze_sentence_syntax(self, sentence_text: str, sentence_structure_text: str) -> AISyntaxResponse:
+    def analyze_sentence_syntax(
+        self,
+        sentence_text: str,
+        sentence_structure_text: str,
+        few_shot_examples: str = "",
+    ) -> AISyntaxResponse:
         if not self._api_key:
             logger.warning(f"{self._provider_name} API key is missing. Skipping AI analysis.")
             return AISyntaxResponse(
@@ -58,7 +63,8 @@ class BaseAIClient(abc.ABC):
 
         prompt = self._syntax_prompt_template.format(
             sentence_text=sentence_text,
-            sentence_structure_text=sentence_structure_text
+            sentence_structure_text=sentence_structure_text,
+            few_shot_examples=few_shot_examples,
         )
 
         content, error_msg = self._post_with_retry(prompt)
@@ -79,7 +85,13 @@ class BaseAIClient(abc.ABC):
             logger.error(f"Validation error for AI schema: {exc}")
             return AISyntaxResponse(is_ambiguous=False, findings=[], error_message="Получен некорректный формат ответа от ИИ.")
 
-    def analyze_sentence_reference(self, sentence_text: str, sentence_structure_text: str) -> AIReferentialResponse:
+    def analyze_sentence_reference(
+        self,
+        sentence_text: str,
+        sentence_structure_text: str,
+        few_shot_examples: str = "",
+        cross_sentence_context: str = "",
+    ) -> AIReferentialResponse:
         if not self._api_key:
             logger.warning(f"{self._provider_name} API key is missing. Skipping AI analysis.")
             return AIReferentialResponse(
@@ -94,7 +106,9 @@ class BaseAIClient(abc.ABC):
 
         prompt = self._referential_prompt_template.format(
             sentence_text=sentence_text,
-            sentence_structure_text=sentence_structure_text
+            sentence_structure_text=sentence_structure_text,
+            few_shot_examples=few_shot_examples,
+            cross_sentence_context=cross_sentence_context,
         )
 
         content, error_msg = self._post_with_retry(prompt)
@@ -115,7 +129,12 @@ class BaseAIClient(abc.ABC):
             logger.error(f"Validation error for AI schema: {exc}")
             return AIReferentialResponse(is_ambiguous=False, findings=[], error_message="Получен некорректный формат ответа от ИИ.")
 
-    def analyze_sentence_coordination(self, sentence_text: str, sentence_structure_text: str) -> AICoordinationalResponse:
+    def analyze_sentence_coordination(
+        self,
+        sentence_text: str,
+        sentence_structure_text: str,
+        few_shot_examples: str = "",
+    ) -> AICoordinationalResponse:
         if not self._api_key:
             logger.warning(f"{self._provider_name} API key is missing. Skipping AI analysis.")
             return AICoordinationalResponse(
@@ -130,7 +149,8 @@ class BaseAIClient(abc.ABC):
 
         prompt = self._coordinational_prompt_template.format(
             sentence_text=sentence_text,
-            sentence_structure_text=sentence_structure_text
+            sentence_structure_text=sentence_structure_text,
+            few_shot_examples=few_shot_examples,
         )
 
         content, error_msg = self._post_with_retry(prompt)
@@ -150,3 +170,4 @@ class BaseAIClient(abc.ABC):
         except ValidationError as exc:
             logger.error(f"Validation error for AI schema: {exc}")
             return AICoordinationalResponse(is_ambiguous=False, findings=[], error_message="Получен некорректный формат ответа от ИИ.")
+

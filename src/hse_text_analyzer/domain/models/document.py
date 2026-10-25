@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 
 from hse_text_analyzer.domain.enums import DocumentType, SourceFileType
 from hse_text_analyzer.domain.models.linguistic import LinguisticAnalysis
+from hse_text_analyzer.domain.models.memory import DocumentMemory
 
 
 class DocumentMetadata(BaseModel):
@@ -32,6 +33,7 @@ class Document(BaseModel):
     metadata: DocumentMetadata
     sections: list[DocumentSection] = Field(default_factory=list)
     linguistic_analysis: LinguisticAnalysis | None = None
+    agent_memory: DocumentMemory | None = None
 
     @property
     def character_count(self) -> int:

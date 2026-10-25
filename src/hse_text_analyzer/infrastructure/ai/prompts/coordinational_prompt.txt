@@ -7,6 +7,9 @@ You receive:
 2. Token list, morphological tags, and dependency tree structure:
 {sentence_structure_text}
 
+3. Few-shot calibration examples (for reference only — do NOT analyse these sentences):
+{few_shot_examples}
+
 Your task is to determine whether the sentence contains any coordinational ambiguity (координационная неоднозначность), where elements connected with coordinate conjunctions (such as "и", "или", "либо", "а также") are ambiguous in how they group together or how a common modifier applies to them.
 
 CRITICAL RULE - STRICT CATEGORY SCOPE:
