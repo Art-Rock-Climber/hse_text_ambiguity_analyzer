@@ -1,10 +1,17 @@
 import logging
+
 from hse_text_analyzer.application.ports.ambiguity_detector import AmbiguityDetector, DetectorMetadata
 from hse_text_analyzer.domain.enums import AmbiguityCategory, FindingSource, Severity, DocumentType
 from hse_text_analyzer.domain.models.ambiguity import AmbiguityFinding, TextSpan, Evidence
 from hse_text_analyzer.domain.models.document import Document
 from hse_text_analyzer.infrastructure.ai.factory import get_ai_client
 from hse_text_analyzer.infrastructure.ai.schemas import AICoordinationalResponse, AICoordinationalFinding
+from hse_text_analyzer.plugins.detectors.detector_utils import (
+    MAX_SENTENCES_PER_DOC,
+    MAX_TOKENS_PER_SENTENCE,
+    format_sentence_structure,
+    find_fragment_span,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -25,73 +32,47 @@ class CoordinationalAmbiguityDetector(AmbiguityDetector):
 
     def detect(self, document: Document) -> list[AmbiguityFinding]:
         """
-        Detects coordinational grouping ambiguities using the OpenRouter AI client.
+        Detects coordinational grouping ambiguities using the AI client.
         Respects limitations check (max 20 sentences, max 80 tokens).
         """
         findings: list[AmbiguityFinding] = []
         if not document.linguistic_analysis or not document.linguistic_analysis.sentences:
             return findings
 
-        # Limitations budget check: Max 20 sentences per document
-        max_sentences = 20
-        sentences_to_process = document.linguistic_analysis.sentences[:max_sentences]
+        sentences_to_process = document.linguistic_analysis.sentences[:MAX_SENTENCES_PER_DOC]
 
         for sent_idx, sentence in enumerate(sentences_to_process):
             if not sentence.text or not sentence.text.strip():
                 continue
-                
-            if len(sentence.tokens) > 80:
+
+            if len(sentence.tokens) > MAX_TOKENS_PER_SENTENCE:
                 continue
 
-            # Prefiltering optimization check
+            # Prefiltering: skip unless there is a coordination pattern worth checking
             cc_tokens = [t for t in sentence.tokens if t.text.lower() in {"и", "или", "либо"}]
             comma_tokens = [t for t in sentence.tokens if t.text == ","]
-            
+
             cc_count = len(cc_tokens)
             comma_count = len(comma_tokens)
-            
+
             has_i = any(t.text.lower() == "и" for t in cc_tokens)
             has_ili = any(t.text.lower() == "или" for t in cc_tokens)
             has_libo = any(t.text.lower() == "либо" for t in cc_tokens)
             conjunction_types = sum([has_i, has_ili, has_libo])
-            
+
             should_call = (
-                cc_count >= 2 or
-                conjunction_types >= 2 or
-                comma_count >= 2 or
-                (comma_count >= 1 and cc_count >= 1)
+                cc_count >= 2
+                or conjunction_types >= 2
+                or comma_count >= 2
+                or (comma_count >= 1 and cc_count >= 1)
             )
-            
+
             if not should_call:
                 continue
 
-            # Format sentence tokens & syntax dependency tree into readable representation
-            structure_lines = []
-            for t_idx, t in enumerate(sentence.tokens):
-                parent_idx = t.syntax_parent_idx
-                parent_info = "ROOT"
-                if parent_idx is not None and 0 <= parent_idx < len(sentence.tokens):
-                    parent_token = sentence.tokens[parent_idx]
-                    parent_info = f"«{parent_token.text}» (# {parent_idx + 1})"
-
-                morph_list = []
-                m = t.morphology
-                if m.pos: morph_list.append(f"POS: {m.pos}")
-                if m.lemma: morph_list.append(f"lemma: {m.lemma}")
-                if m.gender: morph_list.append(f"gender: {m.gender}")
-                if m.number: morph_list.append(f"number: {m.number}")
-                if m.case: morph_list.append(f"case: {m.case}")
-                
-                morph_str = ", ".join(morph_list)
-                structure_lines.append(
-                    f"{t_idx + 1}. {t.text} ({morph_str}) -> parent: {parent_info}, relation: {t.syntax_relation or 'None'}"
-                )
-
-            structure_text = "\n".join(structure_lines)
-            
-            # Query client
+            structure_text = format_sentence_structure(sentence)
             response = self._client.analyze_sentence_coordination(sentence.text, structure_text)
-            
+
             if response.error_message:
                 warning_msg = f"[{self.metadata.name}] {response.error_message}"
                 if warning_msg not in document.metadata.warnings:
@@ -100,15 +81,9 @@ class CoordinationalAmbiguityDetector(AmbiguityDetector):
 
             if response.is_ambiguous and response.findings:
                 for f in response.findings:
-                    frag = f.ambiguous_fragment
-                    start_pos = sentence.text.find(frag)
-                    if start_pos != -1:
-                        span_start = sentence.start_char + start_pos
-                        span_end = span_start + len(frag)
-                    else:
-                        span_start = sentence.start_char
-                        span_end = sentence.end_char
-                        frag = sentence.text
+                    span_start, span_end, frag = find_fragment_span(
+                        sentence.text, f.ambiguous_fragment, sentence.start_char
+                    )
 
                     span = TextSpan(
                         document_id=document.id,
@@ -116,7 +91,7 @@ class CoordinationalAmbiguityDetector(AmbiguityDetector):
                         end_char=span_end,
                         text=frag,
                     )
-                    
+
                     evidence = Evidence(
                         message=f"Ambiguous coordinate group: {frag}",
                         span=span,

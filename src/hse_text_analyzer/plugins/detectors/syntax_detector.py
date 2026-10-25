@@ -1,10 +1,17 @@
 import logging
+
 from hse_text_analyzer.application.ports.ambiguity_detector import AmbiguityDetector, DetectorMetadata
 from hse_text_analyzer.domain.enums import AmbiguityCategory, FindingSource, Severity, DocumentType
 from hse_text_analyzer.domain.models.ambiguity import AmbiguityFinding, TextSpan, Evidence
 from hse_text_analyzer.domain.models.document import Document
 from hse_text_analyzer.infrastructure.ai.factory import get_ai_client
 from hse_text_analyzer.infrastructure.ai.schemas import AISyntaxResponse, AISyntaxFinding
+from hse_text_analyzer.plugins.detectors.detector_utils import (
+    MAX_SENTENCES_PER_DOC,
+    MAX_TOKENS_PER_SENTENCE,
+    format_sentence_structure,
+    find_fragment_span,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -32,52 +39,26 @@ class SyntaxAmbiguityDetector(AmbiguityDetector):
         if not document.linguistic_analysis or not document.linguistic_analysis.sentences:
             return findings
 
-        # Limitations budget check: Max 20 sentences per document
-        max_sentences = 20
-        sentences_to_process = document.linguistic_analysis.sentences[:max_sentences]
-        if len(document.linguistic_analysis.sentences) > max_sentences:
-            logger.info(f"Budget check: document has {len(document.linguistic_analysis.sentences)} sentences. Processing first {max_sentences}.")
+        sentences_to_process = document.linguistic_analysis.sentences[:MAX_SENTENCES_PER_DOC]
+        if len(document.linguistic_analysis.sentences) > MAX_SENTENCES_PER_DOC:
+            logger.info(
+                f"Budget check: document has {len(document.linguistic_analysis.sentences)} sentences. "
+                f"Processing first {MAX_SENTENCES_PER_DOC}."
+            )
 
         for sent_idx, sentence in enumerate(sentences_to_process):
-            # Skip empty or trivially short sentences
             if not sentence.text or not sentence.text.strip():
                 continue
-                
-            # Limit check: Skip sentence if it has more than 80 tokens
-            if len(sentence.tokens) > 80:
-                logger.info(f"Limit check: Sentence #{sent_idx + 1} has {len(sentence.tokens)} tokens. Skipping.")
+
+            if len(sentence.tokens) > MAX_TOKENS_PER_SENTENCE:
+                logger.info(
+                    f"Limit check: Sentence #{sent_idx + 1} has {len(sentence.tokens)} tokens. Skipping."
+                )
                 continue
 
-            # Format sentence tokens & syntax dependency tree into readable representation
-            structure_lines = []
-            for t_idx, t in enumerate(sentence.tokens):
-                parent_idx = t.syntax_parent_idx
-                parent_info = "ROOT"
-                if parent_idx is not None and 0 <= parent_idx < len(sentence.tokens):
-                    parent_token = sentence.tokens[parent_idx]
-                    parent_info = f"«{parent_token.text}» (#{parent_idx + 1})"
-
-                morph_list = []
-                m = t.morphology
-                if m.pos: morph_list.append(f"POS: {m.pos}")
-                if m.lemma: morph_list.append(f"lemma: {m.lemma}")
-                if m.gender: morph_list.append(f"gender: {m.gender}")
-                if m.number: morph_list.append(f"number: {m.number}")
-                if m.case: morph_list.append(f"case: {m.case}")
-                if m.tense: morph_list.append(f"tense: {m.tense}")
-                if m.aspect: morph_list.append(f"aspect: {m.aspect}")
-                if m.person: morph_list.append(f"person: {m.person}")
-                
-                morph_str = ", ".join(morph_list)
-                structure_lines.append(
-                    f"{t_idx + 1}. {t.text} ({morph_str}) -> parent: {parent_info}, relation: {t.syntax_relation or 'None'}"
-                )
-
-            structure_text = "\n".join(structure_lines)
-            
-            # Query client
+            structure_text = format_sentence_structure(sentence)
             response = self._client.analyze_sentence_syntax(sentence.text, structure_text)
-            
+
             if response.error_message:
                 warning_msg = f"[{self.metadata.name}] {response.error_message}"
                 if warning_msg not in document.metadata.warnings:
@@ -86,16 +67,9 @@ class SyntaxAmbiguityDetector(AmbiguityDetector):
 
             if response.is_ambiguous and response.findings:
                 for f in response.findings:
-                    # Resolve start/end characters of ambiguous fragment inside the sentence
-                    frag = f.ambiguous_fragment
-                    start_pos = sentence.text.find(frag)
-                    if start_pos != -1:
-                        span_start = sentence.start_char + start_pos
-                        span_end = span_start + len(frag)
-                    else:
-                        span_start = sentence.start_char
-                        span_end = sentence.end_char
-                        frag = sentence.text
+                    span_start, span_end, frag = find_fragment_span(
+                        sentence.text, f.ambiguous_fragment, sentence.start_char
+                    )
 
                     span = TextSpan(
                         document_id=document.id,
@@ -103,7 +77,7 @@ class SyntaxAmbiguityDetector(AmbiguityDetector):
                         end_char=span_end,
                         text=frag,
                     )
-                    
+
                     # Store syntax override parameters in features dict of Evidence
                     features = {}
                     if f.ambiguous_token_idx is not None:
